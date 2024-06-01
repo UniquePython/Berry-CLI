@@ -40,6 +40,10 @@ class BerryPrompt(tk.Tk):
         self.entry.bind("<Return>", self.execute_command)
         self.entry.focus_set()
 
+        self.output.tag_config("input", foreground="blue")
+        self.output.tag_config("output_text", foreground="green")
+        self.output.tag_config("error", foreground="red")
+
     def execute_command(self, event):
         command = self.entry.get("end-1c linestart", "end-1c lineend").strip()
         current_dir = os.getcwd()
