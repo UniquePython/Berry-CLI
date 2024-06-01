@@ -29,6 +29,9 @@ class BerryPrompt(tk.Tk):
         self.configure(bg="white")
         self.option_add('*Font', 'Arial')
         
+        self.command_history = []
+        self.command_index = -1
+
         self.create_widgets()
 
     def create_widgets(self):
@@ -43,6 +46,10 @@ class BerryPrompt(tk.Tk):
         self.output.tag_config("input", foreground="blue")
         self.output.tag_config("output_text", foreground="green")
         self.output.tag_config("error", foreground="red")
+
+        self.entry.bind("<Up>", self.navigate_command_history)
+        self.entry.bind("<Down>", self.navigate_command_history)
+
 
     def execute_command(self, event):
         command = self.entry.get("end-1c linestart", "end-1c lineend").strip()
@@ -89,12 +96,29 @@ class BerryPrompt(tk.Tk):
             else:
                 self.output.insert(tk.END, "Output: Command not recognized\n", "error")
 
+            self.command_history.append(command)
+            self.command_index = len(self.command_history)
+
         except Exception as e:
             self.output.insert(tk.END, f"({current_dir}) Output: Error: {str(e)}\n", "error")
 
         self.output.config(state="disabled")
         self.output.see("end")
         self.entry.delete("end-1c linestart", "end")
+
+    def navigate_command_history(self, event):
+        if event.keysym == "Up":
+            if self.command_index > 0:
+                self.command_index -= 1
+                self.entry.delete("1.0", "end")
+                self.entry.insert("end", self.command_history[self.command_index])
+        elif event.keysym == "Down":
+            if self.command_index < len(self.command_history) - 1:
+                self.command_index += 1
+                self.entry.delete("1.0", "end")
+                self.entry.insert("end", self.command_history[self.command_index])
+
+
         
     def list_directory(self, directory):
         try:
