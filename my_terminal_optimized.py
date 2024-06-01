@@ -97,15 +97,21 @@ class BerryPrompt(tk.Tk):
         self.entry.delete("end-1c linestart", "end")
         
     def list_directory(self, directory):
-        files = os.listdir(directory)
-        self.output.insert(tk.END, f"({directory}) Output: \n", "output_label")
-        for file in files:
-            self.output.insert(tk.END, f"{file}\n", "output_text")
+        try:
+            files = os.listdir(directory)
+            self.output.insert(tk.END, f"({directory}) Output: \n", "output_label")
+            for file in files:
+                self.output.insert(tk.END, f"{file}\n", "output_text")
+        except FileNotFoundError:
+            self.output.insert(tk.END, f"({directory}) Output: Directory not found\n", "error")
 
     def change_directory(self, directory):
-        os.chdir(directory)
-        current_dir = os.getcwd()
-        self.output.insert(tk.END, f"({current_dir}) Output: Changed directory to: {current_dir}\n", "output_text")
+        try:
+            os.chdir(directory)
+            current_dir = os.getcwd()
+            self.output.insert(tk.END, f"({current_dir}) Output: Changed directory to: {current_dir}\n", "output_text")
+        except FileNotFoundError:
+            self.output.insert(tk.END, f"Output: Directory not found: {directory}\n", "error")
 
     def create_folder(self, folder_name):
         try:
@@ -113,6 +119,8 @@ class BerryPrompt(tk.Tk):
             self.output.insert(tk.END, f"Output: Created folder: {folder_name}\n", "output_text")
         except FileExistsError:
             self.output.insert(tk.END, f"Output: Folder already exists: {folder_name}\n", "output_text")
+        except FileNotFoundError:
+            self.output.insert(tk.END, f"Output: Invalid path: {folder_name}\n", "error")
 
     def create_file(self, file_name):
         try:
@@ -120,6 +128,8 @@ class BerryPrompt(tk.Tk):
             self.output.insert(tk.END, f"Output: Created file: {file_name}\n", "output_text")
         except FileExistsError:
             self.output.insert(tk.END, f"Output: File already exists: {file_name}\n", "output_text")
+        except FileNotFoundError:
+            self.output.insert(tk.END, f"Output: Invalid path: {file_name}\n", "error")
 
     def delete_files(self, file_names):
         for file_name in file_names:
@@ -141,31 +151,37 @@ class BerryPrompt(tk.Tk):
 
     def copy_files(self, args):
         try:
+            if len(args) != 2:
+                raise ValueError("Invalid syntax for 'copy' command")
             source, destination = args
             shutil.copy(source, destination)
             self.output.insert(tk.END, f"Output: Copied file(s)\n", "output_text")
-        except ValueError:
-            self.output.insert(tk.END, f"Output: Invalid syntax for 'copy' command\n", "error")
+        except ValueError as e:
+            self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
         except FileNotFoundError as e:
             self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
 
     def move_files(self, args):
         try:
+            if len(args) != 2:
+                raise ValueError("Invalid syntax for 'move' command")
             source, destination = args
             shutil.move(source, destination)
             self.output.insert(tk.END, f"Output: Moved file(s)\n", "output_text")
-        except ValueError:
-            self.output.insert(tk.END, f"Output: Invalid syntax for 'move' command\n", "error")
+        except ValueError as e:
+            self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
         except FileNotFoundError as e:
             self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
 
     def rename_file(self, args):
         try:
+            if len(args) != 2:
+                raise ValueError("Invalid syntax for 'rename' command")
             old_name, new_name = args
             os.rename(old_name, new_name)
             self.output.insert(tk.END, f"Output: Renamed {old_name} to {new_name}\n", "output_text")
-        except ValueError:
-            self.output.insert(tk.END, f"Output: Invalid syntax for 'rename' command\n", "error")
+        except ValueError as e:
+            self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
         except FileNotFoundError as e:
             self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
 
@@ -195,4 +211,3 @@ class BerryPrompt(tk.Tk):
 if __name__ == "__main__":
     app = BerryPrompt()
     app.mainloop()
-
