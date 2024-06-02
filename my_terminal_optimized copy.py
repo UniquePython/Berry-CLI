@@ -36,7 +36,11 @@ class BerryPrompt(tk.Tk):
         self.style = ttkthemes.ThemedStyle()
         self.style.set_theme("equilux")  
 
-        self.iconbitmap("favicon.ico")
+        icon_path = "favicon.ico"
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+        else:
+            print("Warning: favicon.ico not found. Skipping icon setting.")
 
         self.command_history = []
         self.command_index = -1
