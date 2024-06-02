@@ -1,8 +1,10 @@
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import ttk
 import os
 import shutil
 import subprocess
+import ttkthemes
 
 # Command dictionary
 commands = {
@@ -18,7 +20,9 @@ commands = {
     "rename": ("Renames a file or directory", "rename <old_name> <new_name>"),
     "tasklist": ("Lists all currently running processes", "tasklist"),
     "taskkill": ("Terminates one or more processes", "taskkill <process_name>"),
-    "help": ("Displays information about available commands", "help")
+    "help": ("Displays information about available commands", "help"),
+    "clear": ("Clears the output screen", "clear"),
+    "exit": ("Exits the application", "exit")
 }
 
 class BerryPrompt(tk.Tk):
@@ -28,20 +32,40 @@ class BerryPrompt(tk.Tk):
         self.state('zoomed')
         self.configure(bg="white")
         self.option_add('*Font', 'Arial')
-        
+
+        self.style = ttkthemes.ThemedStyle()
+        self.style.set_theme("equilux")  
+
+        self.iconbitmap("favicon.ico")
+
         self.command_history = []
         self.command_index = -1
 
         self.create_widgets()
 
     def create_widgets(self):
-        self.output = scrolledtext.ScrolledText(self, bg="white", fg="black", wrap=tk.WORD, font=('Arial', 15), state="disabled")
-        self.output.pack(pady=10, padx=10, expand=True, fill=tk.BOTH)
+        # Create menu bar
+        menu_bar = tk.Menu(self)
+        self.config(menu=menu_bar)
 
-        self.entry = tk.Text(self, bg="white", fg="black", insertbackground="black", font=('Arial', 15), height=1)
-        self.entry.pack(pady=5, padx=10, expand=False, fill=tk.X)
+        # Add File menu
+        file_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Clear Output", command=self.clear_output)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.quit)
+
+        self.output = scrolledtext.ScrolledText(self, bg="black", fg="white", wrap=tk.WORD, font=('Arial', 15), state="disabled")
+        self.output.pack(pady=(10, 5), padx=10, expand=True, fill=tk.BOTH)
+
+        self.entry = ttk.Entry(self, font=('Arial', 15), background="black", foreground="white")
+        self.entry.pack(pady=(5, 10), padx=10, expand=False, fill=tk.X)
         self.entry.bind("<Return>", self.execute_command)
         self.entry.focus_set()
+
+        self.status = ttk.Label(self, text=f"Current Directory: {os.getcwd()}", anchor="w", background="white",
+                                foreground="black")
+        self.status.pack(side=tk.BOTTOM, fill=tk.X)
 
         self.output.tag_config("input", foreground="blue")
         self.output.tag_config("output_text", foreground="green")
@@ -50,9 +74,10 @@ class BerryPrompt(tk.Tk):
         self.entry.bind("<Up>", self.navigate_command_history)
         self.entry.bind("<Down>", self.navigate_command_history)
 
-
     def execute_command(self, event):
-        command = self.entry.get("end-1c linestart", "end-1c lineend").strip()
+        command = self.entry.get().strip()
+        if not command:
+            return "break"
         current_dir = os.getcwd()
 
         self.output.config(state="normal")
@@ -63,36 +88,26 @@ class BerryPrompt(tk.Tk):
             cmd = parts[0]
             args = parts[1:]
 
-            if cmd == "print":
-                self.output.insert(tk.END, f"({current_dir}) Output: {' '.join(args)}\n", "output_text")
-            elif cmd == "list":
-                self.list_directory(current_dir if not args else args[0])
-            elif cmd == "cd":
-                self.change_directory(args[0])
-            elif cmd == "new --folder":
-                self.create_folder(args[0])
-            elif cmd == "new --file":
-                self.create_file(args[0])
-            elif cmd == "delete --file":
-                self.delete_files(args)
-            elif cmd == "delete --folder":
-                self.delete_folders(args)
-            elif cmd == "copy":
-                self.copy_files(args)
-            elif cmd == "move":
-                self.move_files(args)
-            elif cmd == "rename":
-                self.rename_file(args)
-            elif cmd == "tasklist":
-                self.list_processes()
-            elif cmd == "taskkill":
-                self.kill_process(args[0])
-            elif cmd == "help":
-                self.show_help()
-            elif cmd == "clear":
-                self.clear_output()
-            elif cmd == "exit":
-                self.quit()
+            command_functions = {
+                "print": self.print_message,
+                "list": self.list_directory,
+                "cd": self.change_directory,
+                "new --folder": self.create_folder,
+                "new --file": self.create_file,
+                "delete --file": self.delete_files,
+                "delete --folder": self.delete_folders,
+                "copy": self.copy_files,
+                "move": self.move_files,
+                "rename": self.rename_file,
+                "tasklist": self.list_processes,
+                "taskkill": self.kill_process,
+                "help": self.show_help,
+                "clear": self.clear_output,
+                "exit": self.quit,
+            }
+
+            if cmd in command_functions:
+                command_functions[cmd](args)
             else:
                 self.output.insert(tk.END, "Output: Command not recognized\n", "error")
 
@@ -104,40 +119,47 @@ class BerryPrompt(tk.Tk):
 
         self.output.config(state="disabled")
         self.output.see("end")
-        self.entry.delete("end-1c linestart", "end")
+        self.entry.delete(0, tk.END)
+        return "break"
 
     def navigate_command_history(self, event):
         if event.keysym == "Up":
             if self.command_index > 0:
                 self.command_index -= 1
-                self.entry.delete("1.0", "end")
-                self.entry.insert("end", self.command_history[self.command_index])
+                self.entry.delete(0, tk.END)
+                self.entry.insert(0, self.command_history[self.command_index])
         elif event.keysym == "Down":
             if self.command_index < len(self.command_history) - 1:
                 self.command_index += 1
-                self.entry.delete("1.0", "end")
-                self.entry.insert("end", self.command_history[self.command_index])
+                self.entry.delete(0, tk.END)
+                self.entry.insert(0, self.command_history[self.command_index])
 
+    def print_message(self, args):
+        message = " ".join(args)
+        self.output.insert(tk.END, f"Output: {message}\n", "output_text")
 
-        
-    def list_directory(self, directory):
+    def list_directory(self, args):
+        directory = args[0] if args else os.getcwd()
         try:
             files = os.listdir(directory)
-            self.output.insert(tk.END, f"({directory}) Output: \n", "output_label")
+            self.output.insert(tk.END, f"({directory}) Output:\n", "output_label")
             for file in files:
                 self.output.insert(tk.END, f"{file}\n", "output_text")
         except FileNotFoundError:
             self.output.insert(tk.END, f"({directory}) Output: Directory not found\n", "error")
 
-    def change_directory(self, directory):
+    def change_directory(self, args):
+        directory = args[0]
         try:
             os.chdir(directory)
             current_dir = os.getcwd()
-            self.output.insert(tk.END, f"({current_dir}) Output: Changed directory to: {current_dir}\n", "output_text")
+            self.status.config(text=f"Current Directory: {current_dir}")
+            self.output.insert(tk.END, f"Output: Changed directory to: {current_dir}\n", "output_text")
         except FileNotFoundError:
             self.output.insert(tk.END, f"Output: Directory not found: {directory}\n", "error")
 
-    def create_folder(self, folder_name):
+    def create_folder(self, args):
+        folder_name = args[0]
         try:
             os.mkdir(folder_name)
             self.output.insert(tk.END, f"Output: Created folder: {folder_name}\n", "output_text")
@@ -146,7 +168,8 @@ class BerryPrompt(tk.Tk):
         except FileNotFoundError:
             self.output.insert(tk.END, f"Output: Invalid path: {folder_name}\n", "error")
 
-    def create_file(self, file_name):
+    def create_file(self, args):
+        file_name = args[0]
         try:
             open(file_name, 'w').close()
             self.output.insert(tk.END, f"Output: Created file: {file_name}\n", "output_text")
@@ -155,16 +178,16 @@ class BerryPrompt(tk.Tk):
         except FileNotFoundError:
             self.output.insert(tk.END, f"Output: Invalid path: {file_name}\n", "error")
 
-    def delete_files(self, file_names):
-        for file_name in file_names:
+    def delete_files(self, args):
+        for file_name in args:
             try:
                 os.remove(file_name)
                 self.output.insert(tk.END, f"Output: Deleted file: {file_name}\n", "output_text")
             except FileNotFoundError:
                 self.output.insert(tk.END, f"Output: File not found: {file_name}\n", "output_text")
 
-    def delete_folders(self, folder_names):
-        for folder_name in folder_names:
+    def delete_folders(self, args):
+        for folder_name in args:
             try:
                 os.rmdir(folder_name)
                 self.output.insert(tk.END, f"Output: Deleted folder: {folder_name}\n", "output_text")
@@ -209,7 +232,7 @@ class BerryPrompt(tk.Tk):
         except FileNotFoundError as e:
             self.output.insert(tk.END, f"Output: {str(e)}\n", "error")
 
-    def list_processes(self):
+    def list_processes(self, args):
         try:
             result = subprocess.run(["tasklist"], capture_output=True, text=True)
             self.output.insert(tk.END, f"Output: \n", "output_label")
@@ -217,20 +240,23 @@ class BerryPrompt(tk.Tk):
         except Exception as e:
             self.output.insert(tk.END, f"Output: Error executing 'tasklist' command: {e}\n", "error")
 
-    def kill_process(self, process_name):
+    def kill_process(self, args):
+        process_name = args[0]
         try:
             subprocess.run(["taskkill", "/F", "/IM", process_name], check=True)
             self.output.insert(tk.END, f"Output: Task(s) terminated successfully\n", "output_text")
         except subprocess.CalledProcessError as e:
             self.output.insert(tk.END, f"Output: Error executing 'taskkill' command: {e}\n", "error")
 
-    def show_help(self):
+    def show_help(self, args=None):
         self.output.insert(tk.END, "List of available commands:\n\n", "output_label")
         for cmd, (description, syntax) in commands.items():
             self.output.insert(tk.END, f"{cmd}: {description}\nSyntax: {syntax}\n\n", "output_text")
 
-    def clear_output(self):
+    def clear_output(self, args=None):
+        self.output.config(state="normal")
         self.output.delete(1.0, tk.END)
+        self.output.config(state="disabled")
 
 if __name__ == "__main__":
     app = BerryPrompt()
