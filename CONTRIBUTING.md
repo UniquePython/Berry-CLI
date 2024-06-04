@@ -9,7 +9,7 @@ Contributions are welcome! If you'd like to contribute to Berry Prompt, please f
 
 To get started with Berry Prompt, follow these steps:
 
-### - Clone the repository:
+### - Clone the repository: 
 
 ```console
 git clone https://github.com/your-username/berry-prompt.git
